@@ -1,0 +1,37 @@
+"use client";
+import React, { memo } from "react";
+import Image from "next/image";
+import { Calendar, DollarSign, Hash, CheckCircle } from "lucide-react";
+
+const CoinListItem = memo(function CoinListItem({ coin, onClick }) {
+  const obverseUrl = coin.images?.obverse?.thumb || coin.images?.obverse?.medium;
+  const reverseUrl = coin.images?.reverse?.thumb || coin.images?.reverse?.medium;
+  const denomination = coin.d_denominations?.denomination_name;
+
+  return (
+    <div className={`coin-list-item ${coin.is_owned ? "owned" : ""}`} onClick={() => onClick(coin)}>
+      <div className="list-images-container">
+        <div className="list-img-wrapper relative">
+          {obverseUrl ? <Image src={obverseUrl} alt="Obv" fill sizes="80px" className="object-cover" style={{ objectFit: "cover" }} /> : <div className="list-item-placeholder">No Obv</div>}
+        </div>
+        <div className="list-img-wrapper relative">
+          {reverseUrl ? <Image src={reverseUrl} alt="Rev" fill sizes="80px" className="object-cover" style={{ objectFit: "cover" }} /> : <div className="list-item-placeholder">No Rev</div>}
+        </div>
+      </div>
+      <div className="list-item-content">
+        <div className="list-item-header">
+          <h3 className="list-item-title">{coin.name}</h3>
+          {denomination && <span className="list-item-denom">{denomination}</span>}
+        </div>
+        <div className="list-item-meta">
+          <div className="meta-tag"><Calendar size={12} /><span>{coin.year || "ND"}</span></div>
+        </div>
+      </div>
+      <div className="list-item-actions">
+        {coin.is_owned && <div className="list-owned-status"><CheckCircle size={16} /><span>Owned</span></div>}
+        <div className="list-price"><DollarSign size={14} /><span>{coin.price_usd ? coin.price_usd.toFixed(2) : "---"}</span></div>
+      </div>
+    </div>
+  );
+});
+export default CoinListItem;
