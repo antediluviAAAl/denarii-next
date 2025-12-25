@@ -1,8 +1,8 @@
 "use client";
 
 import React, { memo } from "react";
-import Image from "next/image";
 import { Calendar, DollarSign, Hash, Eye } from "lucide-react";
+import FadeInImage from "./FadeInImage";
 
 const CoinCard = memo(function CoinCard({ coin, onClick }) {
   const obverseUrl = coin.images?.obverse?.medium;
@@ -27,7 +27,7 @@ const CoinCard = memo(function CoinCard({ coin, onClick }) {
             {/* IMAGE CONTAINER */}
             <div className="coin-image-container relative">
               {obverseUrl ? (
-                <Image
+                <FadeInImage
                   src={obverseUrl}
                   alt={coin.name}
                   fill
@@ -72,7 +72,7 @@ const CoinCard = memo(function CoinCard({ coin, onClick }) {
         <div className="card-back">
           <div className="back-content-wrapper relative">
             {reverseUrl ? (
-              <Image
+              <FadeInImage
                 src={reverseUrl}
                 alt={`${coin.name} Reverse`}
                 fill
