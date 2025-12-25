@@ -11,7 +11,7 @@ import {
   Tag,
   LayoutGrid,
   Table as TableIcon,
-  List as ListIcon, // New Icon
+  List as ListIcon,
 } from "lucide-react";
 
 export default function FilterBar({
@@ -186,7 +186,6 @@ export default function FilterBar({
                 ? "Sorting is disabled in Explore mode (randomized selection)"
                 : ""
             }
-            style={isExploreMode ? { opacity: 0.6, cursor: "not-allowed" } : {}}
           >
             {isExploreMode && <option value="">Randomized</option>}
             <option value="year_desc">Year (Newest)</option>

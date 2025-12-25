@@ -8,16 +8,36 @@ export function useWindowSize() {
   });
 
   useEffect(() => {
+    // Check for window existence (client-side safe)
     if (typeof window === "undefined") return;
+
+    let timeoutId = null;
+
     function handleResize() {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      // Clear existing timer
+      if (timeoutId) clearTimeout(timeoutId);
+
+      // Debounce: Wait 150ms before updating state
+      timeoutId = setTimeout(() => {
+        setWindowSize({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+      }, 150);
     }
+
+    // Initial Set
+    setWindowSize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+
     window.addEventListener("resize", handleResize);
-    handleResize();
-    return () => window.removeEventListener("resize", handleResize);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   return windowSize;

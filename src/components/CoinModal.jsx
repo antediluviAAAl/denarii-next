@@ -2,12 +2,13 @@
 
 import React, { useEffect, useRef } from "react";
 import Image from "next/image";
-import { X, CheckCircle, ExternalLink } from "lucide-react";
+import { X, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
 
-// 1. EXACT REPLICATION OF OLD FETCHER LOGIC
+// Fetcher Function
 async function fetchCoinDetails(coinId) {
+  // 1. Fetch Coin & Relations
   const { data, error } = await supabase
     .from("f_coins")
     .select(
@@ -25,16 +26,39 @@ async function fetchCoinDetails(coinId) {
   if (error) throw error;
   if (!data) return null;
 
-  // Manual Country Fetch (Critical for accuracy)
+  // 2. Robust Country Fetch (2-Step Strategy)
   let countryName = "Unknown";
+
   if (data.period_id) {
-    const { data: cData } = await supabase
-      .from("b_periods_countries")
-      .select("d_countries(country_name)")
-      .eq("period_id", data.period_id)
-      .limit(1);
-    if (cData && cData[0] && cData[0].d_countries) {
-      countryName = cData[0].d_countries.country_name;
+    try {
+      // Step A: Find the Country ID for this Period
+      const { data: linkData, error: linkError } = await supabase
+        .from("b_periods_countries")
+        .select("country_id")
+        .eq("period_id", data.period_id)
+        .limit(1)
+        .maybeSingle();
+
+      if (linkError) {
+        console.error("Link Fetch Error:", linkError);
+      } else if (linkData) {
+        // Step B: Fetch the Country Name using the ID
+        const { data: countryData, error: countryError } = await supabase
+          .from("d_countries")
+          .select("country_name")
+          .eq("country_id", linkData.country_id)
+          .single();
+
+        if (countryError) {
+          console.error("Country Name Error:", countryError);
+        } else if (countryData) {
+          countryName = countryData.country_name;
+        }
+      } else {
+        console.warn("No country linked to period:", data.period_id);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching country:", err);
     }
   }
 
@@ -44,6 +68,7 @@ async function fetchCoinDetails(coinId) {
 export default function CoinModal({ coin, onClose }) {
   const modalRef = useRef(null);
 
+  // Close on Escape
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") onClose();
@@ -52,22 +77,27 @@ export default function CoinModal({ coin, onClose }) {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
-  // Use Query for Caching
-  const { data: details, isLoading } = useQuery({
-    queryKey: ["coin_detail", coin.coin_id],
+  // Use Query
+  const {
+    data: details,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    // UPDATE: Changed key to '_v2' to bust any stale cache from previous errors
+    queryKey: ["coin_detail_v2", coin.coin_id],
     queryFn: () => fetchCoinDetails(coin.coin_id),
-    staleTime: 1000 * 60 * 30,
-    initialData: null, // Don't use 'coin' as initial data to avoid hydration mismatches
+    staleTime: 1000 * 60 * 30, // 30 mins
   });
 
-  // Merge Data safely
+  // Merge Data
   const displayData = details ? { ...coin, ...details } : coin;
 
-  // Explicitly preserve parent props that might be missing in fetch
+  // Preserve local ownership/image data
   if (!displayData.is_owned) displayData.is_owned = coin.is_owned;
   if (!displayData.images) displayData.images = coin.images;
 
-  // Helper for Links
+  // Link Helper
   const renderLink = (text, url) => {
     if (!url) return <span>{text || "Unknown"}</span>;
     return (
@@ -84,11 +114,13 @@ export default function CoinModal({ coin, onClose }) {
     );
   };
 
-  // Image Logic (Next.js Version)
+  // Image Logic
   const obverseUrl =
+    displayData.images?.obverse?.full ||
     displayData.images?.obverse?.original ||
     displayData.images?.obverse?.medium;
   const reverseUrl =
+    displayData.images?.reverse?.full ||
     displayData.images?.reverse?.original ||
     displayData.images?.reverse?.medium;
 
@@ -115,9 +147,20 @@ export default function CoinModal({ coin, onClose }) {
         </div>
 
         <div className="modal-body">
+          {/* Error Banner */}
+          {isError && (
+            <div className="p-4 mb-4 text-red-700 bg-red-50 rounded-lg flex items-center gap-3 border border-red-200">
+              <AlertTriangle size={20} />
+              <div className="flex flex-col text-sm">
+                <span className="font-bold">Error loading details</span>
+                <span>{error?.message || "Check console for details."}</span>
+              </div>
+            </div>
+          )}
+
           {isLoading && !details ? (
             <div
-              style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}
+              style={{ padding: "3rem", textAlign: "center", color: "#6b7280" }}
             >
               Loading full details...
             </div>
@@ -131,7 +174,11 @@ export default function CoinModal({ coin, onClose }) {
                     style={{
                       position: "relative",
                       width: "100%",
-                      height: "300px",
+                      height: "400px", // React Parity: 400px
+                      background: "var(--border-light)",
+                      borderRadius: "var(--radius)",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      overflow: "hidden",
                     }}
                   >
                     {obverseUrl ? (
@@ -139,7 +186,8 @@ export default function CoinModal({ coin, onClose }) {
                         src={obverseUrl}
                         alt="Obverse"
                         fill
-                        style={{ objectFit: "contain" }}
+                        sizes="(max-width: 768px) 100vw, 500px"
+                        style={{ objectFit: "cover" }} // React Parity: Cover
                         priority
                       />
                     ) : (
@@ -153,7 +201,11 @@ export default function CoinModal({ coin, onClose }) {
                     style={{
                       position: "relative",
                       width: "100%",
-                      height: "300px",
+                      height: "400px",
+                      background: "var(--border-light)",
+                      borderRadius: "var(--radius)",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      overflow: "hidden",
                     }}
                   >
                     {reverseUrl ? (
@@ -161,7 +213,8 @@ export default function CoinModal({ coin, onClose }) {
                         src={reverseUrl}
                         alt="Reverse"
                         fill
-                        style={{ objectFit: "contain" }}
+                        sizes="(max-width: 768px) 100vw, 500px"
+                        style={{ objectFit: "cover" }}
                       />
                     ) : (
                       <div className="modal-placeholder">No Image</div>
@@ -170,9 +223,8 @@ export default function CoinModal({ coin, onClose }) {
                 </div>
               </div>
 
-              {/* Data Grid - EXACT MATCH TO OLD APP */}
+              {/* Data Grid */}
               <div className="coin-details-grid three-col">
-                {/* Col 1: Identification */}
                 <div className="detail-group">
                   <h3>Identification</h3>
                   <div className="detail-item">
@@ -206,7 +258,6 @@ export default function CoinModal({ coin, onClose }) {
                   </div>
                 </div>
 
-                {/* Col 2: Groups */}
                 <div className="detail-group">
                   <h3>Groups</h3>
                   <div className="detail-item link-item">
@@ -230,12 +281,13 @@ export default function CoinModal({ coin, onClose }) {
                   <div className="detail-item">
                     <strong>Country:</strong>{" "}
                     <span className="detail-value">
-                      {displayData.countryName || "Loading..."}
+                      {/* This will now show "Unknown" instead of Loading if fetch succeeded but found nothing */}
+                      {displayData.countryName ||
+                        (isError ? "Error" : "Unknown")}
                     </span>
                   </div>
                 </div>
 
-                {/* Col 3: Extra */}
                 <div className="detail-group">
                   <h3>Extra</h3>
                   <div className="detail-item">
