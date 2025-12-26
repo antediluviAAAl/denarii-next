@@ -1,3 +1,4 @@
+// src/components/CoinListItem.jsx
 "use client";
 import React, { memo } from "react";
 import { Calendar, DollarSign, Hash, CheckCircle } from "lucide-react";
@@ -15,6 +16,7 @@ const CoinListItem = memo(function CoinListItem({ coin, onClick }) {
       className={`coin-list-item ${coin.is_owned ? "owned" : ""}`}
       onClick={() => onClick(coin)}
     >
+      {/* 1. DUAL IMAGES (Obverse + Reverse) */}
       <div className="list-images-container">
         <div className="list-img-wrapper relative">
           {obverseUrl ? (
@@ -45,6 +47,8 @@ const CoinListItem = memo(function CoinListItem({ coin, onClick }) {
           )}
         </div>
       </div>
+
+      {/* 2. CONTENT */}
       <div className="list-item-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{coin.name}</h3>
@@ -52,13 +56,29 @@ const CoinListItem = memo(function CoinListItem({ coin, onClick }) {
             <span className="list-item-denom">{denomination}</span>
           )}
         </div>
+        
         <div className="list-item-meta">
           <div className="meta-tag">
             <Calendar size={12} />
             <span>{coin.year || "ND"}</span>
           </div>
+          
+          {/* ADDED: Catalog Number (KM) */}
+          {coin.km && (
+            <div className="meta-tag">
+              <Hash size={12} />
+              <span>{coin.km}</span>
+            </div>
+          )}
+          
+          {/* ADDED: Series Name (Hidden on Mobile) */}
+          <div className="meta-tag mobile-hidden">
+            <span>{coin.d_series?.series_name}</span>
+          </div>
         </div>
       </div>
+
+      {/* 3. ACTIONS / STATUS */}
       <div className="list-item-actions">
         {coin.is_owned && (
           <div className="list-owned-status">
@@ -76,4 +96,5 @@ const CoinListItem = memo(function CoinListItem({ coin, onClick }) {
     </div>
   );
 });
+
 export default CoinListItem;
